@@ -1,0 +1,40 @@
+
+# ── Guardrail Architect: Architectural Enforcement (import-linter) ──────
+# These are EXECUTABLE architecture tests. They run in CI and block merges.
+# Agents can't walk through walls they can't see — these are the walls.
+# Run: lint-imports
+# Docs: https://import-linter.readthedocs.io/
+[tool.importlinter]
+root_packages = ["src"]
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = ["src.api", "src.services", "src.repositories", "src.domain"]
+# Dependencies flow downward ONLY. API → services → repos → domain.
+
+[[tool.importlinter.contracts]]
+name = "Domain independence"
+type = "independence"
+modules = ["src.domain", "src.infrastructure"]
+# Domain layer is PURE — no frameworks, no HTTP, no DB clients.
+
+[[tool.importlinter.contracts]]
+name = "No API-to-database shortcut"
+type = "forbidden"
+source_modules = ["src.api"]
+forbidden_modules = ["src.repositories", "src.database", "src.infrastructure.db"]
+# Controllers MUST go through services. No shortcuts.
+
+[[tool.importlinter.contracts]]
+name = "Trading engine isolation"
+type = "forbidden"
+source_modules = ["src.trading", "src.signals", "src.risk"]
+forbidden_modules = ["src.api", "src.web", "flask", "fastapi", "django"]
+# Trading logic never imports web framework code.
+
+[[tool.importlinter.contracts]]
+name = "No circular service dependencies"
+type = "independence"
+modules = ["src.services.trading", "src.services.risk", "src.services.data"]
+# Services must not depend on each other circularly.

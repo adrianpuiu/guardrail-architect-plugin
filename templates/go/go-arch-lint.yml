@@ -1,0 +1,62 @@
+# Guardrail Architect — go-arch-lint Config
+# Install: go install github.com/fe3dback/go-arch-lint@latest
+# Run: go-arch-lint check
+version: 3
+
+allow:
+  depOnAnyVendor: false
+
+components:
+  domain:
+    in: internal/domain/**
+  service:
+    in: internal/service/**
+  repository:
+    in: internal/repository/**
+  handler:
+    in: internal/handler/**
+    mayDependOn:
+      - service
+  api:
+    in: internal/api/**
+    mayDependOn:
+      - handler
+      - service
+
+deps:
+  # Domain is pure — depends on nothing
+  domain: {}
+  
+  # Repository depends only on domain
+  repository:
+    mayDependOn:
+      - domain
+  
+  # Service depends on domain + repository
+  service:
+    mayDependOn:
+      - domain
+      - repository
+  
+  # Handler depends on service + domain
+  handler:
+    mayDependOn:
+      - service
+      - domain
+  
+  # API depends on handler + service
+  api:
+    mayDependOn:
+      - handler
+      - service
+      - domain
+
+commonComponents:
+  - domain
+
+commonVendors:
+  - "context"
+  - "fmt"
+  - "errors"
+  - "time"
+  - "log/slog"

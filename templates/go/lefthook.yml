@@ -1,0 +1,16 @@
+# Guardrail Architect — Lefthook (Go)
+# Install: brew install lefthook && lefthook install
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -l {staged_files} | tee /dev/stderr | wc -l | xargs test 0 -eq
+    vet:
+      run: go vet ./...
+    lint:
+      run: golangci-lint run ./... 2>&1 | tail -10
+    test:
+      run: go test ./... -short -count=1 2>&1 | tail -10
+    arch:
+      run: go-arch-lint check 2>&1 | tail -5

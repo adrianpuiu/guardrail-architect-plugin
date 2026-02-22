@@ -1,0 +1,70 @@
+# Guardrail Architect — Quality Gate (Go)
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - uses: golangci/golangci-lint-action@v6
+        with: { version: latest }
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - run: go test ./... -count=1 -race -coverprofile=coverage.out -covermode=atomic
+      - name: Check coverage
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "::error::Coverage ${COVERAGE}% below 70% threshold"
+            exit 1
+          fi
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - run: go install github.com/fe3dback/go-arch-lint@latest
+      - run: go-arch-lint check
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+      - run: gosec -severity medium ./...
+        continue-on-error: true
+
+  pr-size-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: |
+          ADDITIONS=$(git diff --numstat origin/main...HEAD | awk '{s+=$1} END {print s+0}')
+          if [ "$ADDITIONS" -gt 500 ]; then
+            echo "::error::PR too large ($ADDITIONS additions)."
+            exit 1
+          fi

@@ -1,0 +1,81 @@
+# Guardrail Architect — Quality Gate (TypeScript)
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - run: pnpm install --frozen-lockfile
+      - name: Lint changed files
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' 2>/dev/null || echo "")
+          if [ -n "$CHANGED" ]; then
+            echo "$CHANGED" | xargs pnpm eslint
+          else
+            pnpm eslint .
+          fi
+      - name: Type check
+        run: pnpm tsc --noEmit
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test -- --coverage --coverageThreshold='{"global":{"branches":70,"functions":70,"lines":70}}'
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - run: pnpm install --frozen-lockfile
+      - run: npx depcruise src --config .dependency-cruiser.cjs --output-type err
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
+
+  pr-size-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: |
+          ADDITIONS=$(git diff --numstat origin/main...HEAD | awk '{s+=$1} END {print s+0}')
+          echo "PR additions: $ADDITIONS"
+          if [ "$ADDITIONS" -gt 500 ]; then
+            echo "::error::PR too large ($ADDITIONS additions). Break into smaller PRs."
+            exit 1
+          fi

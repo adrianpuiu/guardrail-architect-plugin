@@ -1,0 +1,12 @@
+# Guardrail Architect — Lefthook (C#/.NET)
+# Install: brew install lefthook && lefthook install
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.cs"
+      run: dotnet format --verify-no-changes 2>&1 | tail -5
+    build:
+      run: dotnet build --no-restore 2>&1 | tail -5
+    arch-test:
+      run: dotnet test --filter "FullyQualifiedName~Architecture" --no-build 2>&1 | tail -5

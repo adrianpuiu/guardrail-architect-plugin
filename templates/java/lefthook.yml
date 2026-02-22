@@ -1,0 +1,14 @@
+# Guardrail Architect — Lefthook (Java)
+# Install: brew install lefthook && lefthook install
+pre-commit:
+  parallel: true
+  commands:
+    checkstyle:
+      glob: "*.java"
+      run: java -jar checkstyle.jar -c checkstyle.xml {staged_files}
+    spotbugs:
+      run: ./gradlew spotbugsMain 2>&1 | tail -10
+    compile:
+      run: ./gradlew compileJava 2>&1 | tail -5
+    arch-test:
+      run: ./gradlew test --tests "*Arch*" 2>&1 | tail -5

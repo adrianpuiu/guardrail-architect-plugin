@@ -1,0 +1,7 @@
+# Guardrail Architect — Clippy Configuration
+# Run: cargo clippy -- -D warnings
+cognitive-complexity-threshold = 15
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+single-char-binding-names-threshold = 4
+too-many-lines-threshold = 60

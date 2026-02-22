@@ -1,0 +1,68 @@
+# Guardrail Architect — Quality Gate (C#/.NET)
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet build --no-restore --warnaserror
+      - run: dotnet format --no-restore --verify-no-changes
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet test --no-restore --collect:"XPlat Code Coverage"
+      - name: Check coverage
+        run: |
+          COVERAGE=$(find . -name "coverage.cobertura.xml" -exec grep -oP 'line-rate="\K[^"]+' {} \; | head -1)
+          echo "Coverage: $(echo "$COVERAGE * 100" | bc)%"
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet test --no-restore --filter "FullyQualifiedName~Architecture"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet list package --vulnerable --include-transitive 2>&1 | tail -20
+        continue-on-error: true
+
+  pr-size-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: |
+          ADDITIONS=$(git diff --numstat origin/main...HEAD | awk '{s+=$1} END {print s+0}')
+          if [ "$ADDITIONS" -gt 500 ]; then
+            echo "::error::PR too large ($ADDITIONS additions)."
+            exit 1
+          fi

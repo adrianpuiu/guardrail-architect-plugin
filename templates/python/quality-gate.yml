@@ -1,0 +1,99 @@
+# Guardrail Architect — Quality Gate (Python)
+# 6 parallel jobs: lint, types, test, architecture, security, PR size
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true  # Kill stale runs — agents create PRs fast
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install ruff
+      - name: Lint changed files only (diff-scoped)
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD -- '*.py' 2>/dev/null || echo "")
+          if [ -n "$CHANGED" ]; then
+            echo "Checking $(echo "$CHANGED" | wc -l) changed Python files..."
+            echo "$CHANGED" | xargs ruff check
+            echo "$CHANGED" | xargs ruff format --check
+          else
+            echo "No Python files changed — running full check"
+            ruff check . && ruff format --check .
+          fi
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install dependencies
+        run: |
+          pip install mypy
+          pip install -e ".[dev]" 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+      - run: mypy src/ --strict --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov
+          pip install -e ".[dev]" 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=70 -x --tb=short
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install dependencies
+        run: |
+          pip install import-linter
+          pip install -e ".[dev]" 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+      - name: Check architectural contracts
+        run: lint-imports
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pip-audit bandit
+      - name: Dependency vulnerabilities
+        run: pip-audit --strict 2>&1 | tail -20
+        continue-on-error: true
+      - name: Static security analysis
+        run: bandit -r src/ --severity-level medium -f json 2>&1 | tail -20
+
+  pr-size-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Check PR size
+        run: |
+          ADDITIONS=$(git diff --numstat origin/main...HEAD | awk '{s+=$1} END {print s+0}')
+          echo "PR additions: $ADDITIONS"
+          if [ "$ADDITIONS" -gt 500 ]; then
+            echo "::error::PR too large ($ADDITIONS additions). Max 500. Break into smaller PRs."
+            exit 1
+          fi

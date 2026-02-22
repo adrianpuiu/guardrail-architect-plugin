@@ -1,0 +1,49 @@
+# Guardrail Architect — golangci-lint Config
+# Run: golangci-lint run ./...
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  enable:
+    - errcheck        # unchecked error returns
+    - gosimple        # simplify code
+    - govet           # suspicious constructs
+    - ineffassign     # useless assignments
+    - staticcheck     # mega-linter
+    - unused          # dead code
+    - gocritic        # opinionated best practices
+    - gocyclo         # cyclomatic complexity
+    - gofumpt         # stricter gofmt
+    - gosec           # security issues
+    - misspell        # spelling
+    - unconvert       # unnecessary type conversions
+    - unparam         # unused function parameters
+    - bodyclose       # unclosed HTTP response bodies
+    - nilerr          # returning nil error after checking err != nil
+    - prealloc        # suggest preallocating slices
+    - revive          # drop-in replacement for golint
+    - exhaustive      # check switch exhaustiveness
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+  gosec:
+    severity: medium
+    confidence: medium
+  revive:
+    rules:
+      - name: exported
+      - name: unexported-return
+      - name: indent-error-flow
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [gosec, gocritic, gocyclo]
+  max-same-issues: 3

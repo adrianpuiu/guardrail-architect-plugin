@@ -1,0 +1,57 @@
+# Guardrail Architect — Ruff Configuration
+# Replaces flake8 + isort + black + bandit + pyupgrade in one fast binary.
+# Docs: https://docs.astral.sh/ruff/rules/
+
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "B",     # flake8-bugbear (common gotchas)
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade (modern syntax)
+    "S",     # flake8-bandit (security) — catches hardcoded passwords, SQL injection, etc.
+    "T20",   # flake8-print (no print() in prod code)
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+    "N",     # pep8-naming
+    "ANN",   # flake8-annotations (require type hints)
+    "C90",   # mccabe complexity
+    "PT",    # flake8-pytest-style
+    "RET",   # flake8-return (consistent returns)
+    "ARG",   # flake8-unused-arguments
+    "DTZ",   # flake8-datetimez (timezone-aware datetimes — critical for trading)
+    "ICN",   # flake8-import-conventions (numpy as np, pandas as pd)
+    "PIE",   # flake8-pie (misc. lints)
+    "TCH",   # flake8-type-checking (TYPE_CHECKING blocks)
+    "TID",   # flake8-tidy-imports
+]
+ignore = [
+    "ANN101",  # missing type for self
+    "ANN102",  # missing type for cls
+    "ANN401",  # allow Any in some contexts (override per-file if needed)
+]
+
+[lint.mccabe]
+max-complexity = 15  # functions over 15 complexity get flagged
+
+[lint.isort]
+known-first-party = ["src"]
+force-single-line = false
+combine-as-imports = true
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "T20", "ANN", "ARG"]  # allow assert, print, relaxed types in tests
+"scripts/**/*.py" = ["T20", "ANN"]                 # allow print in scripts
+"conftest.py" = ["ANN"]                            # fixtures don't need full annotations
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

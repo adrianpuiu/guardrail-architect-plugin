@@ -1,0 +1,18 @@
+{
+  // Guardrail Architect — TypeScript Strict Overlay
+  // Extend your tsconfig.json: { "extends": "./tsconfig.strict.json" }
+  // These catch the exact mistakes agents make most often.
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,       // arr[0] is T | undefined, not T
+    "exactOptionalPropertyTypes": true,      // undefined !== missing
+    "noImplicitOverride": true,              // override keyword required
+    "noPropertyAccessFromIndexSignature": true, // use bracket notation for dynamic keys
+    "noFallthroughCasesInSwitch": true,      // every case needs break/return
+    "forceConsistentCasingInFileNames": true, // OS-agnostic imports
+    "verbatimModuleSyntax": true,            // explicit import/export types
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
